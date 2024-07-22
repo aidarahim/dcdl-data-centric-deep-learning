@@ -25,8 +25,15 @@ def get_ks_score(tr_probs, te_probs):
   # te_probs: torch.Tensor
   #   predicted probabilities from test test
   # score: float - between 0 and 1
-  pass  # remove me
+  # pass  # remove me
   # ============================
+  # Convert tensors to numpy arrays
+  tr_probs_np = tr_probs.numpy()
+  te_probs_np = te_probs.numpy()
+  
+  # Apply the Kolmogorov-Smirnov test
+  _, score = ks_2samp(tr_probs_np, te_probs_np)
+
   return score
 
 
@@ -68,8 +75,24 @@ def get_hist_score(tr_probs, te_probs, bins=10):
   # 
   # Read the documentation for `np.histogram` carefully, in
   # particular what `bin_edges` represent.
-  pass  # remove me
+  # pass  # remove me
   # ============================
+  # Convert tensors to numpy arrays
+  tr_probs_np = tr_probs.numpy()
+  te_probs_np = te_probs.numpy()
+  
+  # Compute histograms
+  tr_heights, bin_edges = np.histogram(tr_probs_np, bins=bins, density=True)
+  te_heights, _ = np.histogram(te_probs_np, bins=bin_edges, density=True)
+  
+  # Compute the histogram intersection score
+  score = 0.0
+  for i in range(len(bin_edges) - 1):
+      bin_diff = bin_edges[i+1] - bin_edges[i]
+      tr_area = bin_diff * tr_heights[i]
+      te_area = bin_diff * te_heights[i]
+      intersect = min(tr_area, te_area)
+      score += intersect
   return score
 
 
@@ -97,8 +120,17 @@ def get_vocab_outlier(tr_vocab, te_vocab):
   # te_vocab: dict[str, int]
   #   Map from word to count for test examples
   # score: float (between 0 and 1)
-  pass  # remove me
+  # pass  # remove me
   # ============================
+  num_total = len(te_vocab)
+  
+  if num_total == 0:
+    return 0
+  
+  num_seen = sum(1 for word in te_vocab if word in tr_vocab)
+  
+  # Compute the outlier score
+  score = 1 - (num_seen / num_total)
   return score
 
 
@@ -132,8 +164,21 @@ class MonitoringSystem:
     # it to a torch.Tensor.
     # 
     # `te_probs_cal`: torch.Tensor
-    pass  # remove me
+    # pass  # remove me
     # ============================
+    # Convert tensors to numpy arrays
+    tr_probs_np = tr_probs.numpy()
+    tr_labels_np = tr_labels.numpy()
+    te_probs_np = te_probs.numpy()
+    
+    # Fit the isotonic regression model
+    iso_reg = IsotonicRegression(out_of_bounds='clip')
+    iso_reg.fit(tr_probs_np, tr_labels_np)
+    
+    # Calibrate probabilities
+    tr_probs_cal = torch.tensor(iso_reg.transform(tr_probs_np))
+    te_probs_cal = torch.tensor(iso_reg.transform(te_probs_np))
+    
     return tr_probs_cal, te_probs_cal
 
   def monitor(self, te_vocab, te_probs):

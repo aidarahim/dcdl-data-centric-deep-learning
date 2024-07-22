@@ -166,8 +166,12 @@ class MNISTDirectionalityTest(BaseTest):
       # --
       # batch_metric: float (not torch.Tensor!)
       #   Metric computed on a minibatch
-      pass  # remove me
+      # pass  # remove me
       # ================================
+
+      # Compute the fraction of times the transformed images maintains the same prediction
+      batch_metric = (preds_raw == preds_transformed).float().mean().item()
+      
       metric.append(batch_metric)
       pbar.update()
     pbar.close()
